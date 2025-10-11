@@ -69,7 +69,7 @@ export const FuelSection: React.FC = () => {
   return (
     <article id="fuel-gallery">
       <header>
-        <h2>Category switch to: Mineral Fuels, i.e., Refined and Unrefined Oil, Natural Gass, Coal </h2>
+        <h2>Focus: Mineral Fuels, i.e., Refined and Unrefined Oil, Natural Gass, Coal </h2>
       </header>
 
       <section className="img-group-container" ref={containerRef}>

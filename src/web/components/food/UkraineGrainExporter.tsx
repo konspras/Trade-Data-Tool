@@ -50,7 +50,7 @@ export const UkraineGrainExporter: React.FC = () => {
     const chart = echarts.init(chartRef.current);
     const option = {
       title: {
-        text: 'Ukrainian Cereal Exports Versus Global Exports',
+        text: 'Ukrainian Cereal Exports Normalized to Global Total',
         left: 'center',
         top: 'top',
         textStyle: {

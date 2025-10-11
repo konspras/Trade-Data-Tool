@@ -91,14 +91,14 @@ export const FoodSection: React.FC = () => {
         paddingTop: '2rem', // Adjust as needed
         paddingBottom: '1rem', // Adjust as needed for space below the h2
       }}>
-        <h2>Stories of Food Trade</h2>
+        <h2>Trade Stories</h2>
       </header>
       <p className="description-text">
-        Let's pass from aggregate statistics and talk about narrower classes of goods, 
+        Let's move on from aggregate statistics and talk about narrower classes of goods, 
               <br />
         starting with arguably the most important one: 
               <br />
-        Food
+        <span style={{ fontWeight: "bold", fontSize: "1.3em" }}>Food</span>
       </p>
 
       <section className="img-group-container" ref={containerRef}>

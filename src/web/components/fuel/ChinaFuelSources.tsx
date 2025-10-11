@@ -54,7 +54,7 @@ export const ChinaFuelSources: React.FC = () => {
         const chart = echarts.init(chartRef.current);
         const option = {
             title: {
-                text: 'Top Exporters of Mineral Fuels to China',
+                text: 'Top Exporters of Mineral Fuels to China (2023)',
                 left: 'center',
                 top: 'top',
                 textStyle: {

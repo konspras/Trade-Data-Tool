@@ -52,7 +52,7 @@ export const YemenFoodVsGdp: React.FC = () => {
     const chart = echarts.init(chartRef.current);
     const option = {
       title: {
-        text: 'Yemeni Food Imports % GDP',
+        text: 'Yemeni Food Imports as % of GDP',
         left: 'center',
         top: 'top',
         textStyle: {

@@ -143,15 +143,9 @@ export const StoryPage: React.FC = () => {
 
 export const InteractivePage: React.FC = () => {
   return (
-    <div className="app">
-      <main>
-        <ScrollAnimationWrapper style={fullPageStyle}>
-          <section>
-            <p className="description-text"> Freely explore trade dynamics for any country across 87 categories of goods for years between 1995 and 2023!</p>
-            <WorldTradeMapAnimated />
-          </section>
-        </ScrollAnimationWrapper>
-      </main>
+    <div style={{ width: '100vw', height: '100dvh', margin: 0, padding: 0 }}>
+      {/* Keep a brief description, but don’t add extra margins that cause overflow */}
+      <WorldTradeMapAnimated />
     </div>
   );
 };

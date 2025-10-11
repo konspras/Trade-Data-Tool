@@ -4,6 +4,36 @@ import {useData} from '../hooks/useData';
 import worldJson from '../assets/world.json';
 import * as Prm from './params';
 
+// Ensure the world map is registered even when this page loads first (no prior components ran)
+try {
+    const getMap = (echarts as any).getMap?.('world');
+    if (!getMap) {
+        // Normalize feature name property so echarts can match series data by name
+        try {
+            (worldJson as any).features?.forEach((f: any) => {
+                if (f?.properties) {
+                    f.properties.name = f.properties.name || f.properties.NAME || f.properties.admin || f.properties.NAME_LONG;
+                }
+            });
+        } catch {}
+        echarts.registerMap('world', worldJson as any);
+    }
+} catch (e) {
+    // Fallback: attempt to register without checking
+    try {
+        (worldJson as any).features?.forEach((f: any) => {
+            if (f?.properties) {
+                f.properties.name = f.properties.name || f.properties.NAME || f.properties.admin || f.properties.NAME_LONG;
+            }
+        });
+    } catch {}
+    try { echarts.registerMap('world', worldJson as any); } catch {}
+}
+
+// Helper to resolve public URLs in both dev and prod (GitHub Pages base)
+const baseUrl = (import.meta as any).env?.BASE_URL || '/';
+const buildPublicUrl = (p: string) => `${String(baseUrl).replace(/\/+$/, '')}/${p.replace(/^\/+/, '')}`;
+
 
 interface TradeData {
     year: string;
@@ -55,8 +85,8 @@ export const WorldTradeMapAnimated: React.FC = () => {
     // Ref for the line plot
     const linePlotRef = useRef<HTMLDivElement>(null);
 
-    const { data: allData, loading: deficitLoading } = useData<TradeData[]>('absolute_deficit_all_years.csv');
-    const { data: rawChapterMappings, loading: chaptersLoading } = useData<any[]>('interactive/prod_chap_to_description.csv');
+    const { data: allData, loading: deficitLoading, error: allDataError } = useData<TradeData[]>('absolute_deficit_all_years.csv');
+    const { data: rawChapterMappings, loading: chaptersLoading, error: chaptersError } = useData<any[]>('interactive/prod_chap_to_description.csv');
     const [year, setYear] = useState<string>('2023');
     const [playing, setPlaying] = useState(false);
     const [selectedProduct, setSelectedProduct] = useState<string>('');
@@ -71,6 +101,7 @@ export const WorldTradeMapAnimated: React.FC = () => {
     const [topExportsData, setTopExportsData] = useState<Record<string, TopTradeData[]>>({});
     const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
     const [loadingTopData, setLoadingTopData] = useState(false);
+    const [uiError, setUiError] = useState<string | null>(null);
 
     // State for sankey diagram (top import/export countries)
     const [topImportSources, setTopImportSources] = useState<Record<string, any[]>>({});
@@ -86,7 +117,7 @@ export const WorldTradeMapAnimated: React.FC = () => {
         }
 
         try {
-            const response = await fetch(`/Team37/data/interactive/${countryCode}/surplus_deficit_by_chapter.csv`);
+            const response = await fetch(buildPublicUrl(`data/interactive/${countryCode}/surplus_deficit_by_chapter.csv`));
             if (!response.ok) throw new Error('Failed to fetch data');
 
             const text = await response.text();
@@ -196,10 +227,10 @@ export const WorldTradeMapAnimated: React.FC = () => {
         setLoadingTopData(true);
         try {
             // First verify the file exists
-            const importsUrl = `/Team37/data/interactive/${countryCode}/top_import_chapters.csv`;
-            const exportsUrl = `/Team37/data/interactive/${countryCode}/top_export_chapters.csv`;
-            const importSourcesUrl = `/Team37/data/interactive/${countryCode}/top_import_srcs.csv`;
-            const exportSourceUrl = `/Team37/data/interactive/${countryCode}/top_export_dsts.csv`
+            const importsUrl = buildPublicUrl(`data/interactive/${countryCode}/top_import_chapters.csv`);
+            const exportsUrl = buildPublicUrl(`data/interactive/${countryCode}/top_export_chapters.csv`);
+            const importSourcesUrl = buildPublicUrl(`data/interactive/${countryCode}/top_import_srcs.csv`);
+            const exportSourceUrl = buildPublicUrl(`data/interactive/${countryCode}/top_export_dsts.csv`)
 
             console.log(`Attempting to fetch from: ${importsUrl}`);
 
@@ -216,8 +247,7 @@ export const WorldTradeMapAnimated: React.FC = () => {
             const importSourcesText = await importSourcesRes.text();
             const exportSourcesText = await exportSourcesRes.text();
 
-            if (importsText.trim().startsWith('<!DOCTYPE') ||
-                exportsText.trim().startsWith('<!DOCTYPE')) {
+            if (importsText.trim().startsWith('<!DOCTYPE') || exportsText.trim().startsWith('<!DOCTYPE')) {
                 throw new Error('Received HTML instead of CSV data');
             }
 
@@ -258,6 +288,7 @@ export const WorldTradeMapAnimated: React.FC = () => {
 
         } catch (error) {
             console.error(`Failed to load top trade data for ${countryCode}:`, error);
+            setUiError(`Failed to load top trade data for ${countryCode}.`);
             // Set empty data to prevent errors
             setTopImportsData(prev => ({
                 ...prev,
@@ -384,8 +415,8 @@ export const WorldTradeMapAnimated: React.FC = () => {
         if (!sankeyChartRef.current || !selectedCountry || !selectedProduct) return;
 
         // 读取对应国家的top_import_srcs.csv和top_export_dsts.csv
-        const importSourcesUrl = `/Team37/data/interactive/${selectedCountry}/top_import_srcs.csv`;
-        const exportSourcesUrl = `/Team37/data/interactive/${selectedCountry}/top_export_dsts.csv`;
+    const importSourcesUrl = buildPublicUrl(`data/interactive/${selectedCountry}/top_import_srcs.csv`);
+    const exportSourcesUrl = buildPublicUrl(`data/interactive/${selectedCountry}/top_export_dsts.csv`);
 
         const sankeyChart = echarts.init(sankeyChartRef.current);
 
@@ -664,11 +695,13 @@ export const WorldTradeMapAnimated: React.FC = () => {
     // Update your existing map click handler to set the selected country
     const handleMapClick = (params: any) => {
         (async () => {
-            if (!params.data || !params.data.name) return;
+            const clickedName: string | undefined = params?.data?.name || params?.name;
+            if (!clickedName) return;
 
-            const countryFeature = worldJson.features.find(f =>
-                f.properties?.NAME?.toLowerCase() === params.data.name.toLowerCase()
-            );
+            const countryFeature = (worldJson as any).features?.find((f: any) => {
+                const nm = f?.properties?.name || f?.properties?.NAME;
+                return typeof nm === 'string' && nm.toLowerCase() === clickedName.toLowerCase();
+            });
 
             if (!countryFeature || !countryFeature.properties?.ISO_A3) return;
 
@@ -687,9 +720,13 @@ export const WorldTradeMapAnimated: React.FC = () => {
 
     // 页面加载时获取 available_countries.json
     useEffect(() => {
-        fetch('/Team37/data/interactive/available_countries.json')
-            .then(res => res.json())
-            .then(setAvailableCountries);
+        fetch(buildPublicUrl('data/interactive/available_countries.json'))
+            .then(res => {
+                if (!res.ok) throw new Error('Failed to load available countries');
+                return res.json();
+            })
+            .then(setAvailableCountries)
+            .catch(() => setUiError('Could not load available countries list.'));
     }, []);
 
     // 处理章节映射
@@ -733,7 +770,7 @@ export const WorldTradeMapAnimated: React.FC = () => {
                 return;
             }
 
-            const response = await fetch(`/Team37/data/interactive/${countryCode}/surplus_deficit_by_chapter.csv`);
+            const response = await fetch(buildPublicUrl(`data/interactive/${countryCode}/surplus_deficit_by_chapter.csv`));
             if (!response.ok) {
                 // 文件不存在，写入空数据
                 setProductData(prev => ({
@@ -926,10 +963,10 @@ export const WorldTradeMapAnimated: React.FC = () => {
     }, [currentView, availableCountries, allData, selectedProduct, productData, productChapters, chaptersLoading, year]);
 
     // 计算maxRange
-        const values = mapData.map(item => item.value).filter(v => !isNaN(v));
-        const minValue = Math.min(...values);
-        const maxValue = Math.max(...values);
-        const maxRange = Math.max(Math.abs(minValue), Math.abs(maxValue));
+        const values = mapData.map(item => item.value).filter(v => typeof v === 'number' && !isNaN(v));
+            const minValue = values.length ? Math.min(...values) : 0;
+            const maxValue = values.length ? Math.max(...values) : 0;
+            const maxRange = Math.max(Math.abs(minValue), Math.abs(maxValue), 1);
 
     // 生成 option
         const option = {
@@ -1003,21 +1040,47 @@ export const WorldTradeMapAnimated: React.FC = () => {
         chaptersLoading || 
         (currentView === 'product' && !allProductDataLoaded)
     ) {
-        return <div>Loading...</div>;
+        return <div style={{display:'grid',placeItems:'center',height:'100dvh'}}>Loading...</div>;
     }
 
     return (
-        <div style={{ width: '100%', height: '100vh', display: 'flex', flexDirection: 'column' }}>
-            {/* Top Section (70% height) */}
-            <div style={{ display: 'flex', height: '70%', gap: '20px' }}>
-                {/* Left Panel (30% width) */}
-                <div style={{ width: '30%', display: 'flex', flexDirection: 'column' }}>
-                    {/* Controls (Adjusted to be less than 50% to give more space to line plot if needed) */}
-                    <div style={{ height: '50%', padding: '20px', marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{
+            width: '100%',
+            height: '100dvh',
+            display: 'grid',
+            gridTemplateRows: 'minmax(0, 0.6fr) minmax(0, 0.4fr)',
+            gap: '12px',
+            padding: '12px',
+            boxSizing: 'border-box',
+            overflow: 'hidden'
+        }}>
+            {(allDataError || chaptersError) && (
+                <div style={{
+                    position:'absolute',
+                    top: 8,
+                    left:'50%',
+                    transform:'translateX(-50%)',
+                    background:'#fff3cd',
+                    color:'#664d03',
+                    border:'1px solid #ffecb5',
+                    padding:'8px 12px',
+                    borderRadius:6,
+                    zIndex:1000
+                }}>
+                    {allDataError ? 'Failed to load base data. ' : ''}
+                    {chaptersError ? 'Failed to load product chapters.' : ''}
+                </div>
+            )}
+            {/* Top Section */}
+            <div style={{ display: 'flex', gap: '12px', minHeight: 0 }}>
+                {/* Left Panel (responsive width) */}
+                <div style={{ flex: '0 0 clamp(260px, 28vw, 420px)', minWidth: 240, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                    {/* Controls */}
+                    <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         {/* Timeline section */}
                         <div>
                             <div style={{ marginBottom: '8px', fontSize: '18px', color: '#666' }}>
-                                Select a year to view trade data for different periods
+                                Select the Year
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center' }}>
                                 <span style={{ marginRight: '10px', fontWeight: 'bold', minWidth: '40px' }}>1995</span>
@@ -1036,7 +1099,7 @@ export const WorldTradeMapAnimated: React.FC = () => {
                         {/* Product selection section */}
                         <div>
                             <div style={{ marginBottom: '8px', fontSize: '18px', color: '#666' }}>
-                                Choose a product category or view overall trade balance
+                                Choose a Product Category
                             </div>
                             <select 
                                 value={selectedProduct}
@@ -1070,7 +1133,7 @@ export const WorldTradeMapAnimated: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Line Plot (50% height) */}
+                    {/* Line Plot fills remaining height */}
                     <div
                         ref={linePlotRef}
                         style={{
@@ -1078,12 +1141,13 @@ export const WorldTradeMapAnimated: React.FC = () => {
                             backgroundColor: '#fff',
                             borderRadius: '8px',
                             boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                            padding: '10px'
+                            padding: '10px',
+                            minHeight: 0
                         }}
                     />
                 </div>
                 
-                {/* World Map (70% width) */}
+                {/* World Map fills remaining width */}
                 <div
                     ref={chartRef}
                     style={{
@@ -1091,17 +1155,18 @@ export const WorldTradeMapAnimated: React.FC = () => {
                         backgroundColor: '#fff',
                         borderRadius: '8px',
                         boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                        minHeight: '400px'
+                        minHeight: '300px',
+                        height: '100%',
+                        minWidth: 0
                     }}
                 />
             </div>
 
-            {/* Bottom Section (30% height) */}
+            {/* Bottom Section */}
             <div style={{
                 display: 'flex',
-                flex: 1,
-                marginTop: '20px',
-                gap: '20px'
+                minHeight: 0,
+                gap: '12px'
             }}>
                 <div
                     ref={importsChartRef}
@@ -1109,7 +1174,8 @@ export const WorldTradeMapAnimated: React.FC = () => {
                         flex: 1,
                         backgroundColor: '#fff',
                         borderRadius: '8px',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                        height: '100%'
                     }}
                 />
                 <div
@@ -1119,7 +1185,8 @@ export const WorldTradeMapAnimated: React.FC = () => {
                         backgroundColor: '#fff',
                         borderRadius: '8px',
                         boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                        minWidth: '300px'
+                        minWidth: '300px',
+                        height: '100%'
                     }}
                 />
                 <div
@@ -1128,7 +1195,8 @@ export const WorldTradeMapAnimated: React.FC = () => {
                         flex: 1,
                         backgroundColor: '#fff',
                         borderRadius: '8px',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                        height: '100%'
                     }}
                 />
             </div>

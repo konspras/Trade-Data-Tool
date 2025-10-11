@@ -1,5 +1,6 @@
 import React from 'react';
 import { Routes, Route, Link } from 'react-router-dom';
+import Nav from './components/Nav';
 import { WorldTradeMap } from "./components/WorldTradeMap";
 import { TradeTrendChart } from "./components/TradeTrendChart";
 import { TradeGDPChart } from "./components/TradeGDPChart";
@@ -30,6 +31,7 @@ export const StoryPage: React.FC = () => {
 
   return (
     <div className="app">
+      <Nav />
       <ScrollAnimationWrapper style={fullPageStyle}>
         <section className="intro">
           <header>
@@ -107,7 +109,7 @@ export const StoryPage: React.FC = () => {
               <br />
               <br />
             </p>
-            <WorldTradeMap onCountryClick={handleCountryClick} />
+            <WorldTradeMap />
           </section>
         </ScrollAnimationWrapper>
 
@@ -143,9 +145,11 @@ export const StoryPage: React.FC = () => {
 
 export const InteractivePage: React.FC = () => {
   return (
-    <div style={{ width: '100vw', height: '100dvh', margin: 0, padding: 0 }}>
-      {/* Keep a brief description, but don’t add extra margins that cause overflow */}
-      <WorldTradeMapAnimated />
+    <div style={{ width: '100vw', height: '100dvh', margin: 0, padding: 0, display:'flex', flexDirection:'column', overflow:'hidden' }}>
+      <Nav />
+      <div style={{ flex: 1, minHeight: 0, overflow:'hidden' }}>
+        <WorldTradeMapAnimated />
+      </div>
     </div>
   );
 };
@@ -164,8 +168,9 @@ export default App;
 
 const LandingPage: React.FC = () => {
   return (
-    <div className="app" style={{minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center'}}>
-      <div style={{textAlign:'center', padding:'2rem'}}>
+    <div className="app" style={{minHeight:'100vh', display:'flex', flexDirection:'column'}}>
+      <Nav />
+      <div style={{textAlign:'center', padding:'2rem', flex:1, display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column'}}>
         <h1>Acquiring Intuition on Global Trade</h1>
         <p className="description-text">Choose where to start:</p>
         <div style={{display:'flex', gap:'1rem', justifyContent:'center', flexWrap:'wrap'}}>

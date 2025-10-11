@@ -962,17 +962,15 @@ export const WorldTradeMapAnimated: React.FC = () => {
         }
     }, [currentView, availableCountries, allData, selectedProduct, productData, productChapters, chaptersLoading, year]);
 
-    // 计算maxRange
         const values = mapData.map(item => item.value).filter(v => typeof v === 'number' && !isNaN(v));
             const minValue = values.length ? Math.min(...values) : 0;
             const maxValue = values.length ? Math.max(...values) : 0;
             const maxRange = Math.max(Math.abs(minValue), Math.abs(maxValue), 1);
 
-    // 生成 option
         const option = {
             backgroundColor: '#fff',
             title: {
-        text: 'Trade Surpluses and Deficits by Category',
+        text: 'Select a Country',
                 left: 'center',
                 top: 10, // Adjusted for visual balance with controls
                 textStyle: { color: '#333', fontSize: 20 }
@@ -1022,7 +1020,6 @@ export const WorldTradeMapAnimated: React.FC = () => {
             console.log('WorldTradeMapAnimated: setOption 完成');
             chart.on('click', handleMapClick);
 
-            // 添加resize事件监听器
             const handleResize = () => {
                 chart.resize();
             };
@@ -1040,13 +1037,13 @@ export const WorldTradeMapAnimated: React.FC = () => {
         chaptersLoading || 
         (currentView === 'product' && !allProductDataLoaded)
     ) {
-        return <div style={{display:'grid',placeItems:'center',height:'100dvh'}}>Loading...</div>;
+        return <div style={{display:'grid',placeItems:'center',height:'100%'}}>Loading...</div>;
     }
 
     return (
         <div style={{
             width: '100%',
-            height: '100dvh',
+            height: '100%',
             display: 'grid',
             gridTemplateRows: 'minmax(0, 0.6fr) minmax(0, 0.4fr)',
             gap: '12px',

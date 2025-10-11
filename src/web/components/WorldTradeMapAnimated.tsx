@@ -465,7 +465,7 @@ export const WorldTradeMapAnimated: React.FC = () => {
                     left: 'center',
                     top: 10,
                     textStyle: {
-                        fontSize: 18, // Consistent sub-chart title size
+                        fontSize: 20, // Unified sub-chart title size
                         color: '#222'
                     }
                 },
@@ -589,7 +589,7 @@ export const WorldTradeMapAnimated: React.FC = () => {
                     left: 'center',
                     top: 10,
                     textStyle: {
-                        fontSize: 18, // Consistent sub-chart title size
+                        fontSize: 20, // Unified sub-chart title size to match Trade Partners
                         color: '#222'
                     }
                 },
@@ -659,12 +659,7 @@ export const WorldTradeMapAnimated: React.FC = () => {
                         color: '#333',
                         formatter: (params: any) => (params.value as number).toFixed(1) // Value is in billions
                     }
-                }],
-                textStyle: {
-                    fontFamily: 'inherit', // Keep inherit or set specific
-                    fontSize: Prm.label_fontsz, // 14px for general text within chart
-                    color: '#333'
-                }
+                }]
             });
         };
 
@@ -969,12 +964,6 @@ export const WorldTradeMapAnimated: React.FC = () => {
 
         const option = {
             backgroundColor: '#fff',
-            title: {
-        text: 'Select a Country',
-                left: 'center',
-                top: 10, // Adjusted for visual balance with controls
-                textStyle: { color: '#333', fontSize: 20 }
-            },
             tooltip: {
                 trigger: 'item',
                 formatter: (params: any) => {
@@ -983,19 +972,41 @@ export const WorldTradeMapAnimated: React.FC = () => {
                 }
             },
             visualMap: {
-                left: 'left',
+                orient: 'vertical',
+                right: 8,
+                top: 'middle',
                 min: -maxRange,
                 max: maxRange,
-        text: ['Surplus', 'Deficit'],
+                text: ['Surplus', 'Deficit'],
                 realtime: false,
                 calculable: true,
-        inRange: { color: [Prm.map_red, '#ffffff', Prm.map_blue] }
-        
+                inRange: { color: [Prm.map_red, '#ffffff', Prm.map_blue] }
+            },
+            // Use a geo component with boundingCoords to crop polar regions and reduce vertical whitespace
+            geo: {
+                map: 'world',
+                roam: false,
+                top: 0,
+                bottom: 0,
+                left: 0,
+                right: 40, // leave room for the vertical legend
+                layoutCenter: ['50%', '50%'],
+                layoutSize: '135%', // slightly larger to better fill height
+                // Crop the map to exclude extreme polar regions which cause extra whitespace
+                // [lng, lat] pairs for bottom-left and top-right corners
+                boundingCoords: [
+                    [-170, -55], // bottom-left (exclude Antarctica)
+                    [170, 80]    // top-right (limit far north)
+                ],
+                itemStyle: {
+                    borderColor: '#aaa',
+                    borderWidth: 0.5
+                }
             },
             series: [{
         name: 'Trade Balance',
                 type: 'map',
-                map: 'world',
+                geoIndex: 0,
                 roam: false,
         emphasis: { 
             label: { show: true },
@@ -1025,8 +1036,21 @@ export const WorldTradeMapAnimated: React.FC = () => {
             };
             window.addEventListener('resize', handleResize);
 
+            // Resize after initial layout to ensure full height usage
+            requestAnimationFrame(() => chart.resize());
+
+            // Observe container size changes (more reliable than window resize)
+            let ro: ResizeObserver | null = null;
+            try {
+                ro = new ResizeObserver(() => chart.resize());
+                if (chartRef.current) ro.observe(chartRef.current);
+            } catch {}
+
             return () => {
                 window.removeEventListener('resize', handleResize);
+                if (ro) {
+                    try { ro.disconnect(); } catch {}
+                }
                 chart.dispose();
             };
         }
@@ -1069,7 +1093,7 @@ export const WorldTradeMapAnimated: React.FC = () => {
                 </div>
             )}
             {/* Top Section */}
-            <div style={{ display: 'flex', gap: '12px', minHeight: 0 }}>
+            <div style={{ display: 'flex', gap: '12px', minHeight: 0, alignItems: 'stretch' }}>
                 {/* Left Panel (responsive width) */}
                 <div style={{ flex: '0 0 clamp(260px, 28vw, 420px)', minWidth: 240, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                     {/* Controls */}
@@ -1145,18 +1169,22 @@ export const WorldTradeMapAnimated: React.FC = () => {
                 </div>
                 
                 {/* World Map fills remaining width */}
-                <div
-                    ref={chartRef}
-                    style={{
-                        flex: 1,
-                        backgroundColor: '#fff',
-                        borderRadius: '8px',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                        minHeight: '300px',
-                        height: '100%',
-                        minWidth: 0
-                    }}
-                />
+                <div style={{ flex: 1, minWidth: 0, position: 'relative', minHeight: '300px' }}>
+                    <div
+                        ref={chartRef}
+                        style={{
+                            position: 'absolute',
+                            inset: 0,
+                            backgroundColor: '#fff',
+                            borderRadius: '8px',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                        }}
+                    />
+                    {/* Non-intrusive overlay label instead of chart title */}
+                    <div style={{ position: 'absolute', top: 8, left: 12, color: '#666', fontSize: '18px', pointerEvents: 'none' }}>
+                        Select a Country
+                    </div>
+                </div>
             </div>
 
             {/* Bottom Section */}

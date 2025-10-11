@@ -607,8 +607,8 @@ export const WorldTradeMapAnimated: React.FC = () => {
                     }
                 },
                 grid: {
-                    left: 120,
-                    right: 30,
+                    left: 20,
+                    right: 60,
                     top: 60,
                     bottom: 40
                 },
@@ -629,35 +629,56 @@ export const WorldTradeMapAnimated: React.FC = () => {
                     data: yearData.map(item => item.product_chapter),
                     nameTextStyle: {
                         fontWeight: 'bold',
-                        fontSize: Prm.label_fontsz // 14px (for consistency if a name were used)
+                        fontSize: Prm.label_fontsz
                     },
-                    axisLabel: {
-                        interval: 0,
-                        width: 180,
-                        overflow: 'truncate',
-                        ellipsis: '...',
-                        fontSize: Prm.label_fontsz, // 14px
-                        color: '#333',
-                        fontWeight: 'bold',
-                        formatter: function(value: string) {
-                            return value.length > 18 ? value.slice(0, 18) + '...' : value;
-                        }
-                    }
+                    axisLabel: { show: false },
+                    axisTick: { show: false },
+                    axisLine: { show: false }
                 },
                 series: [{
                     type: 'bar',
-                    // Convert value to billions
-                    itemStyle: { // Set bar color
-                        color: barColor
-                    },
-                    data: yearData.map(item => parseFloat(item.value_trln_USD) * 1000),
+                    // Convert value to billions and carry the category name with each item
+                    itemStyle: { color: barColor },
+                    data: yearData.map(item => ({
+                        value: (parseFloat(item.value_trln_USD) || 0) * 1000,
+                        name: item.product_chapter
+                    })),
                     label: {
                         show: true,
-                        position: 'right',
-                        fontSize: Prm.label_fontsz, // 14px
+                        // Start by placing inside; we'll move it outside when it doesn't fit via labelLayout
+                        position: 'insideRight',
+                        fontSize: Prm.label_fontsz,
                         fontWeight: 'bold',
-                        color: '#333',
-                        formatter: (params: any) => (params.value as number).toFixed(1) // Value is in billions
+                        color: '#000',
+                        // Subtle outline for readability when label sits over colored bars
+                        textBorderColor: 'rgba(255,255,255,0.6)',
+                        textBorderWidth: 2,
+                        formatter: (params: any) => {
+                            const name = params.name as string;
+                            const val = Number(params.value) || 0;
+                            const truncated = name && name.length > 50 ? name.slice(0, 50) + '...' : name;
+                            return `${truncated} (${val.toFixed(1)})`;
+                        }
+                    },
+                    // Dynamically position label inside the bar if it fits, otherwise place it to the right
+                    labelLayout: (params: any) => {
+                        try {
+                            const rect = params.rect;        // bar rect
+                            const labelRect = params.labelRect; // label rect
+                            if (rect && labelRect) {
+                                const padding = 6;
+                                const fits = (labelRect.width + padding * 2) <= rect.width;
+                                if (fits) {
+                                    // Keep insideRight; no change needed
+                                    return { x: Math.min(rect.x + rect.width - padding - labelRect.width, rect.x + rect.width - padding), align: 'left' };
+                                } else {
+                                    // Move label to the right of the bar
+                                    return { x: rect.x + rect.width + 6, align: 'left', verticalAlign: 'middle' };
+                                }
+                            }
+                        } catch {}
+                        // Fallback: place to the right
+                        return { align: 'left' } as any;
                     }
                 }]
             });

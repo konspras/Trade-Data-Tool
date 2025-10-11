@@ -1,4 +1,5 @@
 import React from 'react';
+import { Routes, Route, Link } from 'react-router-dom';
 import { WorldTradeMap } from "./components/WorldTradeMap";
 import { TradeTrendChart } from "./components/TradeTrendChart";
 import { TradeGDPChart } from "./components/TradeGDPChart";
@@ -18,7 +19,7 @@ import { inView, animate } from 'framer-motion';
 import { FoodTradeMap } from "./components/food/FoodTradeMap";
 import { FuelTradeMap } from "./components/fuel/FuelTradeMap";
 
-const App: React.FC = () => {
+export const StoryPage: React.FC = () => {
   const [selectedCountry, setSelectedCountry] = React.useState<string>('');
   const [selectedYear, setSelectedYear] = React.useState<string>('2023');
   const [selectedProduct, setSelectedProduct] = React.useState<string>('84');
@@ -130,8 +131,23 @@ const App: React.FC = () => {
 
         <ScrollAnimationWrapper style={fullPageStyle}>
           <section>
-            <p className="description-text"> Freely explore trade dynamics for any country across 87 categories of goods for years between 1995 and 2023!
-            </p>
+            <div style={{display:'flex', gap:'1rem', justifyContent:'center'}}>
+              <Link className="btn" to="/interactive">Go to Interactive Explorer →</Link>
+            </div>
+          </section>
+        </ScrollAnimationWrapper>
+      </main>
+    </div>
+  );
+};
+
+export const InteractivePage: React.FC = () => {
+  return (
+    <div className="app">
+      <main>
+        <ScrollAnimationWrapper style={fullPageStyle}>
+          <section>
+            <p className="description-text"> Freely explore trade dynamics for any country across 87 categories of goods for years between 1995 and 2023!</p>
             <WorldTradeMapAnimated />
           </section>
         </ScrollAnimationWrapper>
@@ -140,4 +156,29 @@ const App: React.FC = () => {
   );
 };
 
+const App: React.FC = () => {
+  return (
+    <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/story" element={<StoryPage />} />
+      <Route path="/interactive" element={<InteractivePage />} />
+    </Routes>
+  );
+};
+
 export default App;
+
+const LandingPage: React.FC = () => {
+  return (
+    <div className="app" style={{minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center'}}>
+      <div style={{textAlign:'center', padding:'2rem'}}>
+        <h1>Acquiring Intuition on Global Trade</h1>
+        <p className="description-text">Choose where to start:</p>
+        <div style={{display:'flex', gap:'1rem', justifyContent:'center', flexWrap:'wrap'}}>
+          <Link className="btn" to="/story">Read the Story →</Link>
+          <Link className="btn" to="/interactive">Explore Interactively →</Link>
+        </div>
+      </div>
+    </div>
+  );
+};

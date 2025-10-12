@@ -1,16 +1,6 @@
-# Project of Data Visualization (COM-480)
-
-| Student's name | SCIPER |
-| -------------- | ------ |
-| Huiyun Zhu   | 355235 |
-| Konstantinos Prasopoulos | 285813 |
-| Yuchen Qian  |322420 |
-
-## Please find the Process Book and the Screencast in `milestone 3/`
-
 # How to use
 
-The website is hosted here: https://com-480-data-visualization.github.io/Team37/
+The website is hosted here: https://konspras.github.io/Trade-Data-Tool/
 
 To run locally:
 * pip install -r requirements.txt

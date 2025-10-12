@@ -708,6 +708,22 @@ export const WorldTradeMapAnimated: React.FC = () => {
     }, [selectedCountry, topImportsData, topExportsData, year]);
 
 
+    // Robust resolver for ISO3 country code from a GeoJSON feature
+    const resolveISO3 = (props: any): string | undefined => {
+        if (!props) return undefined;
+        const candidates = [
+            props.ADM0_A3,      // Natural Earth admin code (preferred)
+            props.ISO_A3_EH,    // "EH" fixed ISO A3 where available
+            props.WB_A3,        // World Bank A3
+            props.ISO_A3,       // Raw ISO A3
+            props.BRK_A3        // Breakaway A3 (fallback)
+        ];
+        for (const c of candidates) {
+            if (typeof c === 'string' && c.trim() && c !== '-99') return c.trim();
+        }
+        return undefined;
+    };
+
     // Update your existing map click handler to set the selected country
     const handleMapClick = (params: any) => {
         (async () => {
@@ -719,10 +735,11 @@ export const WorldTradeMapAnimated: React.FC = () => {
                 return typeof nm === 'string' && nm.toLowerCase() === clickedName.toLowerCase();
             });
 
-            if (!countryFeature || !countryFeature.properties?.ISO_A3) return;
+            if (!countryFeature) return;
 
-            const countryCode = countryFeature.properties.ISO_A3;
-            console.log(countryCode)
+            const countryCode = resolveISO3(countryFeature.properties);
+            if (!countryCode) return;
+            console.log('Map click resolved code:', countryCode, 'for', clickedName);
             setSelectedCountry(countryCode);
 
             // Always load top trade data when a country is selected
@@ -730,6 +747,13 @@ export const WorldTradeMapAnimated: React.FC = () => {
 
             if (currentView === 'product') {
                 await loadProductData(countryCode);
+            }
+
+            // If the country has no data available, inform the user unobtrusively
+            if (availableCountries.length > 0 && !availableCountries.includes(countryCode)) {
+                setUiError(`No interactive data available for ${clickedName} (${countryCode}).`);
+            } else {
+                setUiError(null);
             }
         })();
     };
@@ -892,12 +916,14 @@ export const WorldTradeMapAnimated: React.FC = () => {
         return map;
     }, [productChapters]);
 
-    // 生成codeToName映射
+    // 生成codeToName映射（使用更稳健的ISO3解析，避免 "-99" 冲突）
     const codeToName: Record<string, string> = React.useMemo(() => {
         const map: Record<string, string> = {};
         worldJson.features.forEach(f => {
-            if (f.properties?.ISO_A3 && f.properties?.NAME) {
-                map[f.properties.ISO_A3] = f.properties.NAME;
+            const code = resolveISO3(f.properties);
+            const name = f.properties?.NAME;
+            if (code && name) {
+                map[code] = name;
             }
         });
         return map;
@@ -1096,6 +1122,22 @@ export const WorldTradeMapAnimated: React.FC = () => {
             boxSizing: 'border-box',
             overflow: 'hidden'
         }}>
+            {uiError && (
+                <div style={{
+                    position:'absolute',
+                    top: 8,
+                    left:'50%',
+                    transform:'translateX(-50%)',
+                    background:'#fff3cd',
+                    color:'#664d03',
+                    border:'1px solid #ffecb5',
+                    padding:'8px 12px',
+                    borderRadius:6,
+                    zIndex:1000
+                }}>
+                    {uiError}
+                </div>
+            )}
             {(allDataError || chaptersError) && (
                 <div style={{
                     position:'absolute',
@@ -1201,10 +1243,17 @@ export const WorldTradeMapAnimated: React.FC = () => {
                             boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
                         }}
                     />
-                    {/* Non-intrusive overlay label instead of chart title */}
-                    <div style={{ position: 'absolute', top: 8, left: 12, color: '#666', fontSize: '18px', pointerEvents: 'none' }}>
-                        Select a Country
+                    {/* Non-intrusive overlay label showing selected country */}
+                    <div style={{ position: 'absolute', top: 8, left: 12, color: '#666', fontSize: '18px', pointerEvents: 'none', background:'rgba(255,255,255,0.85)', padding:'4px 8px', borderRadius:6 }}>
+                        {selectedCountry
+                            ? `Selected: ${codeToName[selectedCountry] || selectedCountry} (${selectedCountry})`
+                            : 'Select a Country'}
                     </div>
+                    {selectedCountry && availableCountries.length > 0 && !availableCountries.includes(selectedCountry) && (
+                        <div style={{ position:'absolute', top: 40, left: 12, color:'#8a6d3b', fontSize: 14, background:'rgba(255,243,205,0.95)', border:'1px solid #ffecb5', padding:'4px 8px', borderRadius:6 }}>
+                            No interactive breakdown data available for this country.
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -1246,6 +1295,19 @@ export const WorldTradeMapAnimated: React.FC = () => {
                     }}
                 />
             </div>
+
+            {/* Informative footer note when no detailed data to plot */}
+            {selectedCountry && !loadingProductData && !loadingTopData && (
+                <div style={{ fontSize: 13, color: '#666', textAlign: 'center' }}>
+                    {(() => {
+                        const hasAnyTopData = (topImportsData[selectedCountry]?.length || 0) > 0 || (topExportsData[selectedCountry]?.length || 0) > 0;
+                        if (!hasAnyTopData) {
+                            return `No detailed category data found for ${codeToName[selectedCountry] || selectedCountry} (${selectedCountry}) in ${year}.`;
+                        }
+                        return null;
+                    })()}
+                </div>
+            )}
 
             {(loadingProductData || loadingTopData) && <div>Loading data...</div>}
         </div>
